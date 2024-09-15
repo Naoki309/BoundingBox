@@ -18,6 +18,7 @@ from nms import nms_2d_faster, nms_3d_faster, nms_3d_faster_samecls
 from box_util import get_3d_box
 sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
 from sunrgbd_utils import extract_pc_in_box3d
+from json_saver import save_bounding_boxes_as_json  #add
 
 def flip_axis_to_camera(pc):
     ''' Flip X-right,Y-forward,Z-up to X-right,Y-down,Z-forward
@@ -177,6 +178,27 @@ def parse_predictions(end_points, config_dict):
             batch_pred_map_cls.append([(pred_sem_cls[i,j].item(), pred_corners_3d_upright_camera[i,j], obj_prob[i,j]) \
                 for j in range(pred_center.shape[1]) if pred_mask[i,j]==1 and obj_prob[i,j]>config_dict['conf_thresh']])
     end_points['batch_pred_map_cls'] = batch_pred_map_cls
+
+    batch_pred_map_cls = []  # a list of len == batch size
+
+    for i in range(bsize):
+        pred_list = []
+        for j in range(num_proposal):
+            if pred_mask[i, j] == 1 and obj_prob[i, j] > config_dict['conf_thresh']:
+                # クラス、バウンディングボックスの中心座標、サイズ、回転角度、スコアを取得
+                bbox_data = {
+                    "class": int(pred_sem_cls[i, j].item()),  # クラス（例: 椅子、机）
+                    "center": pred_center_upright_camera[i, j].tolist(),  # 中心座標
+                    "size": pred_corners_3d_upright_camera[i, j].tolist(),  # サイズ
+                    "rotation": heading_angle,  # 回転角度
+                    "score": obj_prob[i, j].item()  # 信頼度スコア
+                }
+                pred_list.append(bbox_data)
+
+        batch_pred_map_cls.append(pred_list)
+
+    # JSONに保存する
+    save_bounding_boxes_as_json(batch_pred_map_cls)
 
     return batch_pred_map_cls
 
