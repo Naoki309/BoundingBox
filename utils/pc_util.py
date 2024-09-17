@@ -405,13 +405,13 @@ def write_oriented_bbox(scene_bbox, out_filename):
         return rotmat
 
     def convert_oriented_box_to_trimesh_fmt(box):
-        ctr = box[:3]
-        lengths = box[3:6]
-        trns = np.eye(4)
-        trns[0:3, 3] = ctr
+        ctr = box[:3] # バウンディングボックスの中心座標
+        lengths = box[3:6] # バウンディングボックスのサイズ
+        trns = np.eye(4) # 4×4の単位行列（変換行列）
+        trns[0:3, 3] = ctr # 中心座標を変換行列にセット
         trns[3,3] = 1.0            
-        trns[0:3,0:3] = heading2rotmat(box[6])
-        box_trimesh_fmt = trimesh.creation.box(lengths, trns)
+        trns[0:3,0:3] = heading2rotmat(box[6]) #z軸周りの回転行列を適用
+        box_trimesh_fmt = trimesh.creation.box(lengths, trns) #3Dボックスの生成
         return box_trimesh_fmt
 
     scene = trimesh.scene.Scene()

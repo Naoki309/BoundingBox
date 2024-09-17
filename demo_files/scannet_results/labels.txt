@@ -1,0 +1,4 @@
+Label: sofa, Centroid: [1.39733183 1.31278658 0.53056204]
+Label: chair, Centroid: [ 2.41187334  1.32438672 -1.04673362]
+Label: table, Centroid: [2.02480245 1.50131071 0.0222154 ]
+Label: table, Centroid: [ 1.10397446  1.48188078 -0.50590342]
