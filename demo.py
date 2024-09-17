@@ -22,6 +22,7 @@ FLAGS = parser.parse_args()
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from plyfile import PlyData 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = BASE_DIR
@@ -29,11 +30,11 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 from pc_util import random_sampling, read_ply
 from ap_helper import parse_predictions
+from convert_obj_to_ply import convert_obj_to_ply
+from convert_ply_to_obj import convert_ply_to_obj
 
 
 #自分が持っているPLYデータのためのコード
-from plyfile import PlyData
-
 def read_ply(filename):
     """Read PLY file using plyfile library and return a numpy array of points."""
     plydata = PlyData.read(filename)
@@ -151,15 +152,20 @@ if __name__=='__main__':
         sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
         from sunrgbd_detection_dataset import DC # dataset config
         checkpoint_path = os.path.join(demo_dir, 'pretrained_votenet_on_sunrgbd.tar')
-        pc_path = os.path.join(demo_dir, 'input_pc_sunrgbd.ply')
+
+        # Unityから送られるOBJファイルをPLYに変換
+        obj_file_path = '/mnt/c/SharedFolder/unity.obj'  # Unityから送られるOBJファイル
+        output_folder = os.path.join(demo_dir)  # 変換後のPLYファイルの保存場所
+        pc_path = convert_obj_to_ply(obj_file_path, output_folder)
     elif FLAGS.dataset == 'scannet':
         sys.path.append(os.path.join(ROOT_DIR, 'scannet'))
         from scannet_detection_dataset import DC # dataset config
         checkpoint_path = os.path.join(demo_dir, 'pretrained_votenet_on_scannet.tar')
 
-        #targetとなるPLYファイルを入力
-        # pc_path = os.path.join(demo_dir, 'input_pc_scannet.ply')
-        pc_path = os.path.join(demo_dir, 'pcd_1.ply')
+        # Unityから送られるOBJファイルをPLYに変換
+        obj_file_path = '/mnt/c/SharedFolder/unity.obj'  # Unityから送られるOBJファイル
+        output_folder = os.path.join(demo_dir)  # 変換後のPLYファイルの保存場所
+        pc_path = convert_obj_to_ply(obj_file_path, output_folder)
     else:
         print('Unkown dataset %s. Exiting.'%(DATASET))
         exit(-1)
@@ -209,7 +215,7 @@ if __name__=='__main__':
     MODEL.dump_results(end_points, dump_dir, DC, True)
     print('Dumped detection results to folder %s'%(dump_dir))
 
-    # # end_pointsをフィルタリング
+    # end_pointsをフィルタリング
     end_points = filter_end_points_by_confidence(end_points, pred_map_cls, eval_config_dict['conf_thresh'])
 
     # 保存したいラベル情報をテキストファイルに出力
@@ -218,6 +224,17 @@ if __name__=='__main__':
 
     # ラベル情報のついたbboxを出力
     export_bbox_to_obj(pred_map_cls, dump_dir, DC.class2type)
+
+    # PLYファイルをOBJファイルに変換
+    bbox_ply_file_path = os.path.join(demo_dir, 'scannet_results/000000_pred_confident_nms_bbox.ply') # 既存のVoteNetの推論結果ファイルパス
+    print(bbox_ply_file_path)
+    shared_folder_path = '/mnt/c/SharedFolder' # 共有フォルダへの出力先
+    converted_obj_path = convert_ply_to_obj(bbox_ply_file_path, shared_folder_path)
+
+    if converted_obj_path:
+        print(f"変換されたOBJファイルが共有フォルダに保存されました: {converted_obj_path}")
+    else:
+        print("PLYファイルのOBJへの変換に失敗しました。")
 
     # # フィルタリングされたバウンディングボックスをPLYファイルに保存
     # MODEL.dump_results(end_points, dump_dir, DC, True)
