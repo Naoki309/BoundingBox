@@ -30,9 +30,8 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 from pc_util import random_sampling, read_ply
 from ap_helper import parse_predictions
-from convert_obj_to_ply import convert_obj_to_ply
-from convert_ply_to_obj import convert_ply_to_obj
-
+from convert_json_to_ply import convert_json_to_ply
+from convert_ply_to_json import convert_ply_to_json
 
 #自分が持っているPLYデータのためのコード
 def read_ply(filename):
@@ -120,9 +119,9 @@ def export_bbox_to_obj(pred_map_cls, dump_dir, class2type):
         # Trimeshオブジェクトを作成
         bbox_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
 
-        # ファイル名を作成してエクスポート
-        output_filename = os.path.join(dump_dir, f"{i}_{class_name}_pred_nms_confident_bbox.obj")
-        bbox_mesh.export(output_filename, file_type='obj')
+        # # ファイル名を作成してエクスポート
+        # output_filename = os.path.join(dump_dir, f"{i}_{class_name}_pred_nms_confident_bbox.obj")
+        # bbox_mesh.export(output_filename, file_type='obj')
 
 def filter_end_points_by_confidence(end_points, pred_map_cls, conf_thresh):
     """
@@ -153,32 +152,42 @@ if __name__=='__main__':
         from sunrgbd_detection_dataset import DC # dataset config
         checkpoint_path = os.path.join(demo_dir, 'pretrained_votenet_on_sunrgbd.tar')
 
-        # Unityから送られるOBJファイルをPLYに変換
-        obj_file_path = '/mnt/c/SharedFolder/unity.obj'  # Unityから送られるOBJファイル
+        # Unityから送られるjsonファイルをPLYに変換
+        obj_file_path = '/mnt/c/SharedFolder/402.json'  # Unityから送られるOBJファイル
         output_folder = os.path.join(demo_dir)  # 変換後のPLYファイルの保存場所
-        pc_path = convert_obj_to_ply(obj_file_path, output_folder)
+        pc_path = convert_json_to_ply(obj_file_path, output_folder)
     elif FLAGS.dataset == 'scannet':
         sys.path.append(os.path.join(ROOT_DIR, 'scannet'))
         from scannet_detection_dataset import DC # dataset config
         checkpoint_path = os.path.join(demo_dir, 'pretrained_votenet_on_scannet.tar')
 
-        # Unityから送られるOBJファイルをPLYに変換
-        obj_file_path = '/mnt/c/SharedFolder/unity.obj'  # Unityから送られるOBJファイル
+        # Unityから送られるjsonファイルをPLYに変換
+        obj_file_path = '/mnt/c/SharedFolder/402.json'  # Unityから送られるOBJファイル
         output_folder = os.path.join(demo_dir)  # 変換後のPLYファイルの保存場所
-        pc_path = convert_obj_to_ply(obj_file_path, output_folder)
+        pc_path = convert_json_to_ply(obj_file_path, output_folder)
     else:
         print('Unkown dataset %s. Exiting.'%(DATASET))
         exit(-1)
 
-    eval_config_dict = {'remove_empty_box': True, 'use_3d_nms': True, 'nms_iou': 0.25,
-        'use_old_type_nms': False, 'cls_nms': False, 'per_class_proposal': False,
-        'conf_thresh': 0.9, 'dataset_config': DC}
+    eval_config_dict = {
+        'remove_empty_box': True, 
+        'use_3d_nms': True, 
+        'nms_iou': 0.25,
+        'use_old_type_nms': False, 
+        'cls_nms': False, 
+        'per_class_proposal': False,
+        'conf_thresh': 0.9, 
+        'dataset_config': DC}
 
     # Init the model and optimzier
     MODEL = importlib.import_module('votenet') # import network module
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    net = MODEL.VoteNet(num_proposal=256, input_feature_dim=1, vote_factor=1,
-        sampling='seed_fps', num_class=DC.num_class,
+    net = MODEL.VoteNet(
+        num_proposal=256, 
+        input_feature_dim=1, 
+        vote_factor=1,
+        sampling='seed_fps', 
+        num_class=DC.num_class,
         num_heading_bin=DC.num_heading_bin,
         num_size_cluster=DC.num_size_cluster,
         mean_size_arr=DC.mean_size_arr).to(device)
@@ -225,16 +234,11 @@ if __name__=='__main__':
     # ラベル情報のついたbboxを出力
     export_bbox_to_obj(pred_map_cls, dump_dir, DC.class2type)
 
-    # PLYファイルをOBJファイルに変換
+    # PLYファイルをjsonファイルに変換
     bbox_ply_file_path = os.path.join(demo_dir, 'scannet_results/000000_pred_confident_nms_bbox.ply') # 既存のVoteNetの推論結果ファイルパス
     print(bbox_ply_file_path)
     shared_folder_path = '/mnt/c/SharedFolder' # 共有フォルダへの出力先
-    converted_obj_path = convert_ply_to_obj(bbox_ply_file_path, shared_folder_path)
-
-    if converted_obj_path:
-        print(f"変換されたOBJファイルが共有フォルダに保存されました: {converted_obj_path}")
-    else:
-        print("PLYファイルのOBJへの変換に失敗しました。")
+    converted_obj_path = convert_ply_to_json(bbox_ply_file_path, shared_folder_path)
 
     # # フィルタリングされたバウンディングボックスをPLYファイルに保存
     # MODEL.dump_results(end_points, dump_dir, DC, True)
